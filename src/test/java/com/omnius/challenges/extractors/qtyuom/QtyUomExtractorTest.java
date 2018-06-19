@@ -1,11 +1,16 @@
 package com.omnius.challenges.extractors.qtyuom;
 
+import com.omnius.challenges.extractors.qtyuom.utils.LeftMostUOMExtractor;
+import com.omnius.challenges.extractors.qtyuom.utils.Pair;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.omnius.challenges.extractors.qtyuom.QtyUomExtractor;
-import com.omnius.challenges.extractors.qtyuom.utils.LeftMostUOMExtractor;
-import com.omnius.challenges.extractors.qtyuom.utils.Pair;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 
 /**
@@ -72,6 +77,7 @@ public class QtyUomExtractorTest extends Assert{
         Pair<String, String> result = matcher.extract("1 10057 Blech 3 3000x1500 1 000 000 000 Stk 28.04.16");
         String qty = result.getFirst();
         String uom = result.getSecond();
+
         assertEquals("1000000000", qty);
         assertEquals("stk", uom);
     }
@@ -102,6 +108,22 @@ public class QtyUomExtractorTest extends Assert{
         Pair<String, String> result = matcher.extract("1 10057 Blech 3 3000x1500 1000000,00 Stk 28.04.16");
         String qty = result.getFirst();
         String uom = result.getSecond();
+
+        assertEquals("1000000,00", qty);
+        assertEquals("stk", uom);
+    }
+
+
+    @Test
+    public void myTest() {
+        QtyUomExtractor matcher = new LeftMostUOMExtractor();
+        //1 10057 Blech 3 3000x1500 1000000,00 Stk 28.04.16
+        //1000000,00
+        //1000000,00 Stk
+        Pair<String, String> result = matcher.extract("1 10057 Blech 3 3000x1500 1000000,00 Stk 28.04.16");
+        String qty = result.getFirst();
+        String uom = result.getSecond();
+
         assertEquals("1000000,00", qty);
         assertEquals("stk", uom);
     }
@@ -213,6 +235,51 @@ public class QtyUomExtractorTest extends Assert{
         // For each line in the CSV run the LeftMostUOMExtractor
         // calculate how many corrected guess your algorithm compute
         // Assert the accuracy higher than 20%
+        int accuracyCounter=0, lineCounter=0, uomIndex=0;
+        String csvFile = "resources/qty_uom_challenge_dataset_clean.csv";
+        BufferedReader br = null;
+        String line = "" , qty="" , uom = "";
+        QtyUomExtractor matcher = new LeftMostUOMExtractor();
+        try {
+            br = new BufferedReader(new FileReader(csvFile));
+            while ((line = br.readLine()) != null) {
+                lineCounter++;
+                List<String> splitLine = Arrays.asList(line.split(","));
+
+                Pair<String, String> result = matcher.extract(line);
+                if (result != null && splitLine.contains("\"" + result.getSecond()+"\"")){
+                        //Index of UOM ::
+                        uomIndex = splitLine.indexOf("\"" + result.getSecond()+"\"");
+                        if (uomIndex > 0) {
+                            //Index of QTY ::
+                            qty = splitLine.get(uomIndex - 1).replace("\"","");;
+                            uom = splitLine.get(uomIndex).replace("\"","");;
+                        }
+                        //Check accuracy :
+                        if (result.getFirst().equals(qty) && result.getSecond().equals(uom))
+                            accuracyCounter++;
+
+                    }
+                }
+
+
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                    assertTrue(accuracyCounter >= lineCounter*0.2);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+
     }
 }
 
